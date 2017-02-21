@@ -33,24 +33,9 @@ function fetchOauthToken (): string {
   return token
 }
 
-async function nextVersion (gh: GithubApi, owner: string, repo: string): Promise<string> {
-  const milestones = await gh.issues.getMilestones({
-    owner,
-    repo,
-    state: 'all',
-    per_page: 100
-  })
-
-  const versions = milestones.data.map((m) => {
-    return semver.parse(m.title.trim())
-  }).sort()
-
-  const latest = versions[versions.length - 1]
-  return semver.inc(latest, 'patch')
-}
-
-export default async function async (owner: string, repo: string): Promise<void> {
+export default async function async (owner: string, repo: string, latest: string): Promise<void> {
   const github = new GithubApi(githubConfig)
+  const version = semver.inc(latest, 'patch')
 
   const tasks = new Listr([{
     title: 'Authenticate',
@@ -61,15 +46,8 @@ export default async function async (owner: string, repo: string): Promise<void>
       })
     }
   }, {
-    title: 'Detect Version',
-    async task (ctx, task) {
-      ctx.version = await nextVersion(github, owner, repo)
-      task.title = `Next Version: v${ctx.version}`
-    }
-  }, {
     title: 'Create Milestone',
     async task (ctx, task) {
-      const {version} = ctx
       const milestone = await github.issues.createMilestone({
         owner,
         repo,
@@ -82,7 +60,7 @@ export default async function async (owner: string, repo: string): Promise<void>
   }, {
     title: 'Create Issue',
     async task (ctx, task) {
-      const {version, milestone} = ctx
+      const {milestone} = ctx
       const issue = await github.issues.create({
         owner,
         repo,
