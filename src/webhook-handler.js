@@ -7,6 +7,7 @@ import crypto from 'crypto'
 import bl from 'bl'
 import bufferEq from 'buffer-equal-constant-time'
 import http from 'http'
+import qs from 'qs'
 
 function signBlob (key: string, blob: Buffer): string {
   return 'sha1=' + crypto.createHmac('sha1', key).update(blob).digest('hex')
@@ -94,11 +95,18 @@ class Handler extends EventEmitter {
         return hasError('X-Hub-Signature does not match blob signature')
       }
 
+      let payload
+      try {
+        payload = qs.parse(data.toString()).payload
+      } catch (e) {
+        return hasError(e)
+      }
+
       let obj
       try {
-        obj = JSON.parse(data.toString())
+        obj = JSON.parse(payload)
       } catch (e) {
-        console.error('failed to parse', data.toString())
+        console.error('failed to parse', payload)
         return hasError(e)
       }
 
