@@ -3,6 +3,7 @@
 
 import GithubApi from 'github'
 import Listr from 'listr'
+import semver from 'semver'
 
 const githubConfig = {
   protocol: 'https',
@@ -32,10 +33,25 @@ function fetchOauthToken (): string {
   return token
 }
 
+async function nextVersion (gh: GithubApi, owner: string, repo: string): Promise<string> {
+  const milestones = await gh.issues.getMilestones({
+    owner,
+    repo,
+    state: 'all',
+    per_page: 100
+  })
+
+  const versions = milestones.data.map((m) => {
+    return semver.parse(m.title.trim())
+  }).sort()
+
+  const latest = versions[versions.length - 1]
+  return semver.inc(latest, 'patch')
+}
+
 export default async function async () {
   const github = new GithubApi(githubConfig)
 
-  const version = '1.3.0'
   const owner = 'dignifiedquire'
   const repo = 'realeaser'
 
@@ -48,8 +64,15 @@ export default async function async () {
       })
     }
   }, {
+    title: 'Detect Version',
+    async task (ctx, task) {
+      ctx.version = await nextVersion(github, owner, repo)
+      task.title = `Next Version: v${ctx.version}`
+    }
+  }, {
     title: 'Create Milestone',
     async task (ctx, task) {
+      const {version} = ctx
       const milestone = await github.issues.createMilestone({
         owner,
         repo,
@@ -62,10 +85,11 @@ export default async function async () {
   }, {
     title: 'Create Issue',
     async task (ctx, task) {
+      const {version, milestone} = ctx
       const issue = await github.issues.create({
         owner,
         repo,
-        milestone: ctx.milestone.number,
+        milestone: milestone.number,
         title: `Checklist for v${version}`,
         body: checklist(version)
       })
