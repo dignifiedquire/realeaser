@@ -25,13 +25,14 @@ export default function (owner: string, repo: string, secret: string): http.Serv
 
   handler.on('milestone', (event) => {
     console.log('Received a milestone event')
-    console.log(JSON.stringify(event))
 
-    if (event.action !== 'closed') {
+    const {payload} = event
+    const {action, milestone} = payload
+    if (action !== 'closed') {
       return
     }
 
-    const version = event.milestone.title
+    const version = milestone.title
     createMilestone(owner, repo, version)
       .then(() => {
         console.log('Crated follow up milestone')
