@@ -2,17 +2,18 @@
 'use strict'
 
 import http from 'http'
-import createHandler from 'github-webhook-handler'
+import Handler from './webhook-handler'
 import createMilestone from './create-milestone'
 
 export default function (owner: string, repo: string, secret: string): http.Server {
-  const handler = createHandler({
+  const handler = new Handler({
     path: '/webhook',
-    secret
+    secret,
+    events: ['milestone', 'ping']
   })
 
   const server = http.createServer((req, res) => {
-    handler(req, res, () => {
+    handler.handle(req, res, () => {
       res.statusCode = 404
       res.end('no such location')
     })
